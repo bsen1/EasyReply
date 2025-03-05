@@ -181,9 +181,9 @@ export default function Home() {
           </div>
           {/* Fine Tuning Options */}
           <div className="mt-8">
-            <h2 className="text-xl font-semibold mb-4">
+            <h2 className="text-xl font-semibold mb-4 ">
               Fine Tuning Options
-              {!responseBody && (<span className="text-sm font-normal"> (Generate a Response First)</span>)}
+              {!responseBody && (<span className="text-base font-bold"> (Generate a Response First)</span>)}
             </h2>
             <div className="flex space-x-2">
               <button
@@ -204,8 +204,8 @@ export default function Home() {
               </button>
             </div>
             {/* Creativity Fine Tuning Option */}
-            <div className="mt-4">
-              <label className="block text-sm font-medium mb-2">Creativity</label>
+            <div className="mt-4 text-lg">
+              <label className="block text-lg font-bold mt-2 mb-2">Creativity</label>
               <div className="flex items-center space-x-2">
                 <button
                   type="button"
@@ -215,7 +215,7 @@ export default function Home() {
                     handleRegenerate("temperature");
                   }}
                   disabled={!responseBody || temperature <= 0}
-                  className="px-2 py-1 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors disabled:opacity-50"
+                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors disabled:opacity-50"
                 >
                   –
                 </button>
@@ -229,7 +229,7 @@ export default function Home() {
                     handleRegenerate("temperature");
                   }}
                   disabled={!responseBody || temperature >= 2}
-                  className="px-2 py-1 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors disabled:opacity-50"
+                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors disabled:opacity-50"
                 >
                   +
                 </button>
