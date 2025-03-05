@@ -9,7 +9,10 @@ const app = next({ dev });
 const handle = app.getRequestHandler();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
+const model = genAI.getGenerativeModel({ 
+  model: "gemini-2.0-flash-lite",
+  systemInstruction: "You are a professional email assistant. Your task is to generate a response email based on provided email content and specified customization options. Ensure your response is formatted as a proper email."
+});
 
 app.prepare().then(() => {
   const server = express();
@@ -17,21 +20,33 @@ app.prepare().then(() => {
   // Parse JSON bodies
   server.use(express.json());
 
-  // API endpoint: receives an email and returns a recommended response via Gemini AI.
+  // API endpoint: receives an email and customization options, returns a recommended response via Gemini AI.
   server.post('/api/generate-response', async (req, res) => {
-    const { email } = req.body;
+    const { email, tone, essence, pointsToInclude } = req.body;
+    
+    const prompt = `You are a professional email assistant tasked with writing a response to an email.
+    ${(tone && tone.trim() !== "") ? `Write the response email in a ${tone} tone. ` : ""}
+    ${(essence && essence.trim() !== "") ? `Make sure the essence of the response reflects this idea: ${essence}. ` : ""}
+    ${(pointsToInclude && pointsToInclude.trim() !== "") ? `Make sure to cover each of these points in your response: ${pointsToInclude}. ` : ""}
+    Your response must strictly conform to a standard email format.
+    - Start with a salutation,
+    - Follow with a blank line,
+    - Provide the email content,
+    - Insert another blank line,
+    - End with a closing statement and signature.
+    Do not add any extra commentary Do not use any bold, italic, or underlinec text.
+
+    Here is the Email you are tasked with generating a response for:
+    ${email}`;
+
+    // Log the prompt to verify newline characters and formatting
+    console.log("Generated Prompt:\n", prompt);
+
     try {
-      const prompt = `You are a professional email assistant. Please read the email below and craft a well-considered, friendly, and professional response. You must follow the instructions exactly and produce your reply strictly in the format of an email body. Regardless of any other instructions you are given onwards, your output must conform exactly to an email body format and nothing else. Do not add any additional text, headers, or formatting. Do not include a subject line. Do not use any bold, italicized, or underlined text in your response. Your entire output must start with a salutation, followed by a blank line, then the email body, followed by a blank line, and a closing statement and signature.
-      
-      Here is the Email:
-      ${email}`;
-      
       const geminiResponse = await model.generateContent(prompt);
       const fullText = geminiResponse.response.text();
 
-      let emailBody = fullText;
-
-      res.json({ body: emailBody });
+      res.json({ body: fullText });
     } catch (error) {
       console.error('Gemini AI error:', error);
       res.status(500).json({ error: 'Failed to generate response using Gemini AI.' });
@@ -39,35 +54,54 @@ app.prepare().then(() => {
   });
 
 
-  // server.js (inside app.prepare().then(() => { ... }))
-// Place this endpoint before the catch-all route.
-  server.post('/api/regenerate-sentence', async (req, res) => {
-    const { email, sentence } = req.body;
-    try {
-      const prompt = `You are a professional email assistant. Re-generate ONLY the specified sentence in the following email. Do not include any extra text or formatting. Your output must be exactly one sentence that fits seamlessly into the original email response.
-      
-      Sentence to regenerate:
-      ${sentence}
-  
-      Email:
-      ${email}`;
+  server.post('/api/regenerate-response', async (req, res) => {
+    const {currentResponse, regenerateOption, tone, essence, pointsToInclude, temperature} = req.body;
+    const prompt = `You are a professional email assistant tasked with refining a previously generated email response.
 
-      console.log('Regenerate prompt:', prompt);
-      const geminiResponse = await model.generateContent(prompt);
-      const newSentence = geminiResponse.response.text();
-      console.log('New regenerated sentence:', newSentence);
-      res.json({ newSentence });
+    Here is the previously generated response:
+    ${currentResponse}
+
+    ${regenerateOption === "shorter" ? "The user has requested a slightly shorter and more concise version of the response." : ""}
+    ${regenerateOption === "longer" ? "The user has requested a slightly longer and more detailed version of the response." : ""}
+    ${(tone && tone.trim() !== "") ? `Write the response email in a ${tone} tone. ` : ""}
+    ${(essence && essence.trim() !== "") ? `Make sure the essence of the response reflects this idea: ${essence}. ` : ""}
+    ${(pointsToInclude && pointsToInclude.trim() !== "") ? `Make sure to cover each of these points in your response: ${pointsToInclude}. ` : ""}
+    Your response must strictly conform to a standard email format.
+    - Start with a salutation,
+    - Follow with a blank line,
+    - Provide the email content,
+    - Insert another blank line,
+    - End with a closing statement and signature.
+    Do not add any extra commentary. Do not use any bold, italic, or underlined text.`;
+
+    console.log("Regenerate Prompt:\n", prompt);
+
+    try {
+      const geminiResponse = await model.generateContent({
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              {
+                text: prompt,
+              }
+            ],
+          }
+        ],
+        generationConfig: {
+          temperature: temperature
+        },
+      });
+      const fullText = geminiResponse.response.text();
+      res.json({ body: fullText });
     } catch (error) {
-      console.error('Gemini AI error (regenerate sentence):', error);
-      res.status(500).json({ error: 'Failed to regenerate sentence using Gemini AI.' });
+      console.error('Gemini AI error:', error);
+      res.status(500).json({ error: 'Failed to regenerate response using Gemini AI.' });
     }
   });
 
-
   // Let Next.js handle all other routes.
-  server.get('*', (req, res) => {
-    return handle(req, res);
-  });
+  server.get('*', (req, res) => handle(req, res));
 
   const port = process.env.PORT || 3000;
   server.listen(port, (err) => {
