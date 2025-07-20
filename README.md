@@ -1,0 +1,2 @@
+# EasyReply
+This is an AI-powered email reply generator designed to help you craft quick, contextually relevant, and professional email responses. Leveraging the power of Large Language Models (LLMs), it analyzes incoming email content and generates tailored reply suggestions, saving you time and enhancing your communication efficiency.
